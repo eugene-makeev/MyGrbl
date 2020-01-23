@@ -37,6 +37,11 @@
 #define DEFAULTS_GENERIC
 #define CPU_MAP_ATMEGA328P // Arduino Uno CPU
 
+// standalone type of controller: no external command interface, g-code inside flash memory, for
+// simple CNC machines
+// code size reduced by disabling unneeded logging and functions
+#define STANDALONE_CTRL
+
 // Serial baud rate
 // #define BAUD_RATE 230400
 #define BAUD_RATE 115200

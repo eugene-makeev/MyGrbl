@@ -28,15 +28,36 @@
 
 #include "grbl.h"
 
-
+#ifndef STANDALONE_CTRL
 // Internal report utilities to reduce flash with repetitive tasks turned into functions.
-void report_util_setting_prefix(uint8_t n) { serial_write('$'); print_uint8_base10(n); serial_write('='); }
-static void report_util_line_feed() { printPgmString(PSTR("\r\n")); }
-static void report_util_feedback_line_feed() { serial_write(']'); report_util_line_feed(); }
-static void report_util_gcode_modes_G() { printPgmString(PSTR(" G")); }
-static void report_util_gcode_modes_M() { printPgmString(PSTR(" M")); }
+void report_util_setting_prefix(uint8_t n) 
+{ 
+	serial_write('$'); 
+	print_uint8_base10(n); 
+	serial_write('='); 
+}
+static void report_util_line_feed() 
+{
+	 printPgmString(PSTR("\r\n")); 
+}
+static void report_util_feedback_line_feed() 
+{ 
+	serial_write(']'); 
+	report_util_line_feed(); 
+}
+static void report_util_gcode_modes_G()
+{
+	 printPgmString(PSTR(" G")); 
+}
+
+static void report_util_gcode_modes_M() 
+{ 
+	printPgmString(PSTR(" M")); 
+}
+
 // static void report_util_comment_line_feed() { serial_write(')'); report_util_line_feed(); }
-static void report_util_axis_values(float *axis_value) {
+static void report_util_axis_values(float *axis_value) 
+{
   uint8_t idx;
   for (idx=0; idx<N_AXIS; idx++) {
     printFloat_CoordValue(axis_value[idx]);
@@ -91,17 +112,19 @@ static void report_util_setting_string(uint8_t n) {
 }
 */
 
-static void report_util_uint8_setting(uint8_t n, int val) { 
+static void report_util_uint8_setting(uint8_t n, int val) 
+{ 
   report_util_setting_prefix(n); 
   print_uint8_base10(val); 
   report_util_line_feed(); // report_util_setting_string(n); 
 }
-static void report_util_float_setting(uint8_t n, float val, uint8_t n_decimal) { 
+static void report_util_float_setting(uint8_t n, float val, uint8_t n_decimal) 
+{ 
   report_util_setting_prefix(n); 
   printFloat(val,n_decimal);
   report_util_line_feed(); // report_util_setting_string(n);
 }
-
+#endif
 
 // Handles the primary confirmation protocol response for streaming interfaces and human-feedback.
 // For every incoming line, this method responds with an 'ok' for a successful command or an
@@ -111,6 +134,7 @@ static void report_util_float_setting(uint8_t n, float val, uint8_t n_decimal) {
 // responses.
 void report_status_message(uint8_t status_code)
 {
+#ifndef STANDALONE_CTRL
   switch(status_code) {
     case STATUS_OK: // STATUS_OK
       printPgmString(PSTR("ok\r\n")); break;
@@ -119,15 +143,18 @@ void report_status_message(uint8_t status_code)
       print_uint8_base10(status_code);
       report_util_line_feed();
   }
+#endif
 }
 
 // Prints alarm messages.
 void report_alarm_message(uint8_t alarm_code)
 {
+#ifndef STANDALONE_CTRL 
   printPgmString(PSTR("ALARM:"));
   print_uint8_base10(alarm_code);
   report_util_line_feed();
   delay_ms(500); // Force delay to ensure message clears serial write buffer.
+#endif
 }
 
 // Prints feedback messages. This serves as a centralized method to provide additional
@@ -137,6 +164,7 @@ void report_alarm_message(uint8_t alarm_code)
 // is installed, the message number codes are less than zero.
 void report_feedback_message(uint8_t message_code)
 {
+#ifndef STANDALONE_CTRL
   printPgmString(PSTR("[MSG:"));
   switch(message_code) {
     case MESSAGE_CRITICAL_EVENT:
@@ -163,24 +191,32 @@ void report_feedback_message(uint8_t message_code)
       printPgmString(PSTR("Sleeping")); break;
   }
   report_util_feedback_line_feed();
+#endif
 }
 
 
 // Welcome message
 void report_init_message()
 {
+#ifndef STANDALONE_CTRL
   printPgmString(PSTR("\r\nGrbl " GRBL_VERSION " ['$' for help]\r\n"));
+#endif
 }
 
 // Grbl help message
-void report_grbl_help() {
+void report_grbl_help() 
+{
+#ifndef STANDALONE_CTRL
   printPgmString(PSTR("[HLP:$$ $# $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H ~ ! ? ctrl-x]\r\n"));    
+#endif
 }
 
 
 // Grbl global settings print out.
 // NOTE: The numbering scheme here must correlate to storing in settings.c
-void report_grbl_settings() {
+void report_grbl_settings() 
+{
+#ifndef STANDALONE_CTRL
   // Print Grbl settings.
   report_util_uint8_setting(0,settings.pulse_microseconds);
   report_util_uint8_setting(1,settings.stepper_idle_lock_time);
@@ -222,6 +258,7 @@ void report_grbl_settings() {
     }
     val += AXIS_SETTINGS_INCREMENT;
   }
+#endif
 }
 
 
@@ -230,6 +267,7 @@ void report_grbl_settings() {
 // These values are retained until Grbl is power-cycled, whereby they will be re-zeroed.
 void report_probe_parameters()
 {
+#ifndef STANDALONE_CTRL
   // Report in terms of machine position.
   printPgmString(PSTR("[PRB:"));
   float print_position[N_AXIS];
@@ -238,12 +276,14 @@ void report_probe_parameters()
   serial_write(':');
   print_uint8_base10(sys.probe_succeeded);
   report_util_feedback_line_feed();
+#endif
 }
 
 
 // Prints Grbl NGC parameters (coordinate offsets, probing)
 void report_ngc_parameters()
 {
+#ifndef STANDALONE_CTRL
   float coord_data[N_AXIS];
   uint8_t coord_select;
   for (coord_select = 0; coord_select <= SETTING_INDEX_NCOORD; coord_select++) {
@@ -268,12 +308,14 @@ void report_ngc_parameters()
   printFloat_CoordValue(gc_state.tool_length_offset);
   report_util_feedback_line_feed();
   report_probe_parameters(); // Print probe parameters. Not persistent in memory.
+#endif
 }
 
 
 // Print current gcode parser mode state
 void report_gcode_modes()
 {
+#ifndef STANDALONE_CTRL
   printPgmString(PSTR("[GC:G"));
   if (gc_state.modal.motion >= MOTION_MODE_PROBE_TOWARD) {
     printPgmString(PSTR("38."));
@@ -346,29 +388,35 @@ void report_gcode_modes()
   #endif
 
   report_util_feedback_line_feed();
+#endif
 }
 
 // Prints specified startup line
 void report_startup_line(uint8_t n, char *line)
 {
+#ifndef STANDALONE_CTRL
   printPgmString(PSTR("$N"));
   print_uint8_base10(n);
   serial_write('=');
   printString(line);
   report_util_line_feed();
+#endif
 }
 
 void report_execute_startup_message(char *line, uint8_t status_code)
 {
+#ifndef STANDALONE_CTRL
   serial_write('>');
   printString(line);
   serial_write(':');
   report_status_message(status_code);
+#endif
 }
 
 // Prints build info line
 void report_build_info(char *line)
 {
+#ifndef STANDALONE_CTRL
   printPgmString(PSTR("[VER:" GRBL_VERSION "." GRBL_VERSION_BUILD ":"));
   printString(line);
   report_util_feedback_line_feed();
@@ -446,6 +494,7 @@ void report_build_info(char *line)
   print_uint8_base10(RX_BUFFER_SIZE);
 
   report_util_feedback_line_feed();
+#endif
 }
 
 
@@ -453,8 +502,10 @@ void report_build_info(char *line)
 // and has been sent into protocol_execute_line() routine to be executed by Grbl.
 void report_echo_line_received(char *line)
 {
+#ifndef STANDALONE_CTRL
   printPgmString(PSTR("[echo: ")); printString(line);
   report_util_feedback_line_feed();
+#endif
 }
 
 
@@ -465,6 +516,7 @@ void report_echo_line_received(char *line)
  // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
 void report_realtime_status()
 {
+#ifndef STANDALONE_CTRL
   uint8_t idx;
   int32_t current_position[N_AXIS]; // Copy current state of the system position variable
   memcpy(current_position,sys_position,sizeof(sys_position));
@@ -651,6 +703,7 @@ void report_realtime_status()
 
   serial_write('>');
   report_util_line_feed();
+#endif
 }
 
 
@@ -660,3 +713,5 @@ void report_realtime_status()
 
   }
 #endif
+
+
