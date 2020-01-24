@@ -46,6 +46,8 @@ void protocol_main_loop()
       }
     }
   #endif
+  
+#ifndef STANDALONE_CTRL
   // Check for and report alarm state after a reset, error, or an initial power up.
   // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
   // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
@@ -62,7 +64,7 @@ void protocol_main_loop()
     // All systems go!
     system_execute_startup(line); // Execute startup script.
   }
-
+#endif
   // ---------------------------------------------------------------------------------
   // Primary loop! Upon a system abort, this exits back to main() to reset the system.
   // This is also where Grbl idles while waiting for something to do.
