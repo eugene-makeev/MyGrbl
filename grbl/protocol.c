@@ -29,8 +29,18 @@
 
 static char line[LINE_BUFFER_SIZE]; // Line to be executed. Zero-terminated.
 
+//LDFLAGS += -Wl,--section-start=.gcode=0x6800
+
+#define GCODE_SECTION   __attribute__ ((section (".gcode")))
+const uint8_t gcode[2048] GCODE_SECTION;
+
 static void protocol_exec_rt_suspend();
 
+uint8_t gcode_get_byte(uint16_t address)
+{
+	
+	return SERIAL_NO_DATA;
+}
 
 /*
   GRBL PRIMARY LOOP:
@@ -47,7 +57,6 @@ void protocol_main_loop()
     }
   #endif
   
-#ifndef STANDALONE_CTRL
   // Check for and report alarm state after a reset, error, or an initial power up.
   // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
   // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
@@ -64,7 +73,7 @@ void protocol_main_loop()
     // All systems go!
     system_execute_startup(line); // Execute startup script.
   }
-#endif
+
   // ---------------------------------------------------------------------------------
   // Primary loop! Upon a system abort, this exits back to main() to reset the system.
   // This is also where Grbl idles while waiting for something to do.
@@ -73,35 +82,61 @@ void protocol_main_loop()
   uint8_t line_flags = 0;
   uint8_t char_counter = 0;
   uint8_t c;
-  for (;;) {
-
+#ifdef STANDALONE_CTRL
+  uint16_t gcode_offset = 0;
+#endif  
+  
+  for (;;) 
+  {
     // Process one line of incoming serial data, as the data becomes available. Performs an
     // initial filtering by removing spaces and comments and capitalizing all letters.
-    while((c = serial_read()) != SERIAL_NO_DATA) {
-      if ((c == '\n') || (c == '\r')) { // End of line reached
+#ifdef STANDALONE_CTRL
+    while((c = serial_read()) != SERIAL_NO_DATA) 
+#else
+    while((c = gcode_get_byte()) != SERIAL_NO_DATA)
+#endif
+	{
+      if ((c == '\n') || (c == '\r')) 
+	  { // End of line reached
 
         protocol_execute_realtime(); // Runtime command check point.
-        if (sys.abort) { return; } // Bail to calling function upon system abort
+		
+        if (sys.abort) 
+		{ 
+			return;
+		} // Bail to calling function upon system abort
 
         line[char_counter] = 0; // Set string termination character.
-        #ifdef REPORT_ECHO_LINE_RECEIVED
+
+		#ifdef REPORT_ECHO_LINE_RECEIVED
           report_echo_line_received(line);
         #endif
-
+		
         // Direct and execute one line of formatted input, and report status of execution.
-        if (line_flags & LINE_FLAG_OVERFLOW) {
+        if (line_flags & LINE_FLAG_OVERFLOW) 
+		{
           // Report line overflow error.
           report_status_message(STATUS_OVERFLOW);
-        } else if (line[0] == 0) {
+        } 
+#ifndef STANDALONE_CTRL
+		else if (line[0] == 0) 
+		{
           // Empty or comment line. For syncing purposes.
           report_status_message(STATUS_OK);
-        } else if (line[0] == '$') {
+        } 
+		else if (line[0] == '$') 
+		{
           // Grbl '$' system command
           report_status_message(system_execute_line(line));
-        } else if (sys.state & (STATE_ALARM | STATE_JOG)) {
+        }
+#endif
+		else if (sys.state & (STATE_ALARM | STATE_JOG)) 
+		{
           // Everything else is gcode. Block if in alarm or jog mode.
           report_status_message(STATUS_SYSTEM_GC_LOCK);
-        } else {
+        } 
+		else 
+		{
           // Parse and execute g-code block.
           report_status_message(gc_execute_line(line));
         }
@@ -109,28 +144,42 @@ void protocol_main_loop()
         // Reset tracking data for next line.
         line_flags = 0;
         char_counter = 0;
-
-      } else {
-
-        if (line_flags) {
+      } 
+	  else 
+      {
+        if (line_flags) 
+		{
           // Throw away all (except EOL) comment characters and overflow characters.
-          if (c == ')') {
+          if (c == ')') 
+		  {
             // End of '()' comment. Resume line allowed.
-            if (line_flags & LINE_FLAG_COMMENT_PARENTHESES) { line_flags &= ~(LINE_FLAG_COMMENT_PARENTHESES); }
+            if (line_flags & LINE_FLAG_COMMENT_PARENTHESES)
+			{ 
+				line_flags &= ~(LINE_FLAG_COMMENT_PARENTHESES); 
+			}
           }
-        } else {
-          if (c <= ' ') {
+        } 
+		else 
+		{
+          if (c <= ' ') 
+		  {
             // Throw away whitepace and control characters
-          } else if (c == '/') {
+          } 
+		  else if (c == '/') 
+		  {
             // Block delete NOT SUPPORTED. Ignore character.
             // NOTE: If supported, would simply need to check the system if block delete is enabled.
-          } else if (c == '(') {
+          } 
+		  else if (c == '(') 
+		  {
             // Enable comments flag and ignore all characters until ')' or EOL.
             // NOTE: This doesn't follow the NIST definition exactly, but is good enough for now.
             // In the future, we could simply remove the items within the comments, but retain the
             // comment control characters, so that the g-code parser can error-check it.
             line_flags |= LINE_FLAG_COMMENT_PARENTHESES;
-          } else if (c == ';') {
+          } 
+		  else if (c == ';') 
+		  {
             // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
             line_flags |= LINE_FLAG_COMMENT_SEMICOLON;
           // TODO: Install '%' feature
@@ -140,16 +189,21 @@ void protocol_main_loop()
             // where, during a program, the system auto-cycle start will continue to execute
             // everything until the next '%' sign. This will help fix resuming issues with certain
             // functions that empty the planner buffer to execute its task on-time.
-          } else if (char_counter >= (LINE_BUFFER_SIZE-1)) {
+          } 
+		  else if (char_counter >= (LINE_BUFFER_SIZE-1)) 
+		  {
             // Detect line buffer overflow and set flag.
             line_flags |= LINE_FLAG_OVERFLOW;
-          } else if (c >= 'a' && c <= 'z') { // Upcase lowercase
+          } 
+		  else if (c >= 'a' && c <= 'z') 
+		  { // Upcase lowercase
             line[char_counter++] = c-'a'+'A';
-          } else {
+          } 
+		  else 
+		  {
             line[char_counter++] = c;
           }
         }
-
       }
     }
 

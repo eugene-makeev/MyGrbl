@@ -22,6 +22,15 @@
 #include "grbl.h"
 
 
+
+//LDFLAGS += -Wl,--section-start=.bootstring=0x3FA00
+
+#define GCODE_SECTION   __attribute__ ((section (".gcode")))
+
+const char boot_Version   [] GCODE_SECTION = "1.0";
+
+
+
 // Declare system global variable structure
 system_t sys;
 int32_t sys_position[N_AXIS];      // Real-time machine (aka home) position vector in steps.
