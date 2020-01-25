@@ -107,9 +107,9 @@ void protocol_main_loop()
 
         line[char_counter] = 0; // Set string termination character.
 
-		#ifdef REPORT_ECHO_LINE_RECEIVED
+#ifdef REPORT_ECHO_LINE_RECEIVED
           report_echo_line_received(line);
-        #endif
+#endif
 		
         // Direct and execute one line of formatted input, and report status of execution.
         if (line_flags & LINE_FLAG_OVERFLOW) 
