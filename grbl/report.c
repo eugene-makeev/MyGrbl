@@ -198,9 +198,7 @@ void report_feedback_message(uint8_t message_code)
 // Welcome message
 void report_init_message()
 {
-#ifndef STANDALONE_CTRL
   printPgmString(PSTR("\r\nGrbl " GRBL_VERSION " ['$' for help]\r\n"));
-#endif
 }
 
 // Grbl help message
