@@ -4,5 +4,8 @@
 *.elf
 *.DS_Store
 *.d
+*.lss
+*.map
+*.srec
 
 README.md

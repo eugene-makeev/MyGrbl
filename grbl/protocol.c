@@ -20,6 +20,7 @@
 */
 
 #include "grbl.h"
+#include "avr/pgmspace.h"
 
 // Define line flags. Includes comment type tracking and line overflow detection.
 #define LINE_FLAG_OVERFLOW bit(0)
@@ -29,22 +30,30 @@
 
 static char line[LINE_BUFFER_SIZE]; // Line to be executed. Zero-terminated.
 
-//LDFLAGS += -Wl,--section-start=.gcode=0x6800
-
+<<<<<<< HEAD
 #define GCODE_MAX_SIZE 2048
 #define GCODE_SECTION   __attribute__ ((section (".gcode")))
 const uint8_t gcode[GCODE_MAX_SIZE] GCODE_SECTION;
+=======
+//#define GCODE_SECTION   __attribute__ ((section (".gcode")))
+//const uint8_t gcode[2048] PROGMEM GCODE_SECTION;
+uint8_t * p_gcode = (uint8_t *)(GCODE_ADDRESS);
+>>>>>>> 9092cb811474f7d46bd63b8f7823905985d213f5
 
 static void protocol_exec_rt_suspend();
 
-uint8_t gcode_get_byte(uint16_t address)
+uint8_t gcode_get_byte(void)
 {
+<<<<<<< HEAD
 	if (address < GCODE_MAX_SIZE)
 	{
 		return gcode[address];
 	}
 	
 	return SERIAL_NO_DATA;
+=======
+	return pgm_read_byte(p_gcode++);
+>>>>>>> 9092cb811474f7d46bd63b8f7823905985d213f5
 }
 
 /*
@@ -86,18 +95,18 @@ void protocol_main_loop()
 
   uint8_t line_flags = 0;
   uint8_t char_counter = 0;
-  uint8_t c;
-#ifdef STANDALONE_CTRL
-  uint16_t gcode_offset = 0;
-#endif  
+  uint8_t c;  
   
   for (;;) 
   {
     // Process one line of incoming serial data, as the data becomes available. Performs an
     // initial filtering by removing spaces and comments and capitalizing all letters.
-#ifdef STANDALONE_CTRL
+#ifndef STANDALONE_CTRL
     while((c = serial_read()) != SERIAL_NO_DATA) 
 #else
+    // start from beginning
+    p_gcode = (uint8_t *)(GCODE_ADDRESS);
+  
     while((c = gcode_get_byte()) != SERIAL_NO_DATA)
 #endif
 	{
@@ -113,9 +122,9 @@ void protocol_main_loop()
 
         line[char_counter] = 0; // Set string termination character.
 
-		#ifdef REPORT_ECHO_LINE_RECEIVED
+#ifdef REPORT_ECHO_LINE_RECEIVED
           report_echo_line_received(line);
-        #endif
+#endif
 		
         // Direct and execute one line of formatted input, and report status of execution.
         if (line_flags & LINE_FLAG_OVERFLOW) 
