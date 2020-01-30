@@ -31,13 +31,18 @@ static char line[LINE_BUFFER_SIZE]; // Line to be executed. Zero-terminated.
 
 //LDFLAGS += -Wl,--section-start=.gcode=0x6800
 
+#define GCODE_MAX_SIZE 2048
 #define GCODE_SECTION   __attribute__ ((section (".gcode")))
-const uint8_t gcode[2048] GCODE_SECTION;
+const uint8_t gcode[GCODE_MAX_SIZE] GCODE_SECTION;
 
 static void protocol_exec_rt_suspend();
 
 uint8_t gcode_get_byte(uint16_t address)
 {
+	if (address < GCODE_MAX_SIZE)
+	{
+		return gcode[address];
+	}
 	
 	return SERIAL_NO_DATA;
 }
