@@ -41,6 +41,10 @@
 // simple CNC machines
 // code size reduced by disabling unneeded logging and functions
 #define STANDALONE_CTRL
+// no output 
+//#define SILENT_MODE 
+// enable support for CMD_STATUS_REPORT
+//#define REALTIME_STATUS_REPORT
 
 // Serial baud rate
 // #define BAUD_RATE 230400

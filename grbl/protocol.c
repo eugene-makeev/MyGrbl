@@ -30,30 +30,13 @@
 
 static char line[LINE_BUFFER_SIZE]; // Line to be executed. Zero-terminated.
 
-<<<<<<< HEAD
-#define GCODE_MAX_SIZE 2048
-#define GCODE_SECTION   __attribute__ ((section (".gcode")))
-const uint8_t gcode[GCODE_MAX_SIZE] GCODE_SECTION;
-=======
-//#define GCODE_SECTION   __attribute__ ((section (".gcode")))
-//const uint8_t gcode[2048] PROGMEM GCODE_SECTION;
 uint8_t * p_gcode = (uint8_t *)(GCODE_ADDRESS);
->>>>>>> 9092cb811474f7d46bd63b8f7823905985d213f5
 
 static void protocol_exec_rt_suspend();
 
 uint8_t gcode_get_byte(void)
 {
-<<<<<<< HEAD
-	if (address < GCODE_MAX_SIZE)
-	{
-		return gcode[address];
-	}
-	
-	return SERIAL_NO_DATA;
-=======
 	return pgm_read_byte(p_gcode++);
->>>>>>> 9092cb811474f7d46bd63b8f7823905985d213f5
 }
 
 /*
@@ -316,11 +299,13 @@ void protocol_exec_rt_system()
       return; // Nothing else to do but exit.
     }
 
+#ifdef REALTIME_STATUS_REPORT
     // Execute and serial print status
     if (rt_exec & EXEC_STATUS_REPORT) {
       report_realtime_status();
       system_clear_exec_state_flag(EXEC_STATUS_REPORT);
     }
+#endif	
 
     // NOTE: Once hold is initiated, the system immediately enters a suspend state to block all
     // main program processes until either reset or resumed. This ensures a hold completes safely.

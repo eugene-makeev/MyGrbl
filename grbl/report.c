@@ -28,7 +28,7 @@
 
 #include "grbl.h"
 
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
 // Internal report utilities to reduce flash with repetitive tasks turned into functions.
 void report_util_setting_prefix(uint8_t n) 
 { 
@@ -134,7 +134,7 @@ static void report_util_float_setting(uint8_t n, float val, uint8_t n_decimal)
 // responses.
 void report_status_message(uint8_t status_code)
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   switch(status_code) {
     case STATUS_OK: // STATUS_OK
       printPgmString(PSTR("ok\r\n")); break;
@@ -149,7 +149,7 @@ void report_status_message(uint8_t status_code)
 // Prints alarm messages.
 void report_alarm_message(uint8_t alarm_code)
 {
-#ifndef STANDALONE_CTRL 
+#ifndef SILENT_MODE 
   printPgmString(PSTR("ALARM:"));
   print_uint8_base10(alarm_code);
   report_util_line_feed();
@@ -164,7 +164,7 @@ void report_alarm_message(uint8_t alarm_code)
 // is installed, the message number codes are less than zero.
 void report_feedback_message(uint8_t message_code)
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   printPgmString(PSTR("[MSG:"));
   switch(message_code) {
     case MESSAGE_CRITICAL_EVENT:
@@ -204,7 +204,7 @@ void report_init_message()
 // Grbl help message
 void report_grbl_help() 
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   printPgmString(PSTR("[HLP:$$ $# $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H ~ ! ? ctrl-x]\r\n"));    
 #endif
 }
@@ -214,7 +214,7 @@ void report_grbl_help()
 // NOTE: The numbering scheme here must correlate to storing in settings.c
 void report_grbl_settings() 
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   // Print Grbl settings.
   report_util_uint8_setting(0,settings.pulse_microseconds);
   report_util_uint8_setting(1,settings.stepper_idle_lock_time);
@@ -265,7 +265,7 @@ void report_grbl_settings()
 // These values are retained until Grbl is power-cycled, whereby they will be re-zeroed.
 void report_probe_parameters()
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   // Report in terms of machine position.
   printPgmString(PSTR("[PRB:"));
   float print_position[N_AXIS];
@@ -281,7 +281,7 @@ void report_probe_parameters()
 // Prints Grbl NGC parameters (coordinate offsets, probing)
 void report_ngc_parameters()
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   float coord_data[N_AXIS];
   uint8_t coord_select;
   for (coord_select = 0; coord_select <= SETTING_INDEX_NCOORD; coord_select++) {
@@ -313,7 +313,7 @@ void report_ngc_parameters()
 // Print current gcode parser mode state
 void report_gcode_modes()
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   printPgmString(PSTR("[GC:G"));
   if (gc_state.modal.motion >= MOTION_MODE_PROBE_TOWARD) {
     printPgmString(PSTR("38."));
@@ -392,7 +392,7 @@ void report_gcode_modes()
 // Prints specified startup line
 void report_startup_line(uint8_t n, char *line)
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   printPgmString(PSTR("$N"));
   print_uint8_base10(n);
   serial_write('=');
@@ -403,7 +403,7 @@ void report_startup_line(uint8_t n, char *line)
 
 void report_execute_startup_message(char *line, uint8_t status_code)
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   serial_write('>');
   printString(line);
   serial_write(':');
@@ -414,7 +414,7 @@ void report_execute_startup_message(char *line, uint8_t status_code)
 // Prints build info line
 void report_build_info(char *line)
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   printPgmString(PSTR("[VER:" GRBL_VERSION "." GRBL_VERSION_BUILD ":"));
   printString(line);
   report_util_feedback_line_feed();
@@ -500,7 +500,7 @@ void report_build_info(char *line)
 // and has been sent into protocol_execute_line() routine to be executed by Grbl.
 void report_echo_line_received(char *line)
 {
-#ifndef STANDALONE_CTRL
+#ifndef SILENT_MODE
   printPgmString(PSTR("[echo: ")); printString(line);
   report_util_feedback_line_feed();
 #endif
@@ -514,7 +514,6 @@ void report_echo_line_received(char *line)
  // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
 void report_realtime_status()
 {
-#ifndef STANDALONE_CTRL
   uint8_t idx;
   int32_t current_position[N_AXIS]; // Copy current state of the system position variable
   memcpy(current_position,sys_position,sizeof(sys_position));
@@ -701,7 +700,6 @@ void report_realtime_status()
 
   serial_write('>');
   report_util_line_feed();
-#endif
 }
 
 
