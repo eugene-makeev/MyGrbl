@@ -1,22 +1,22 @@
 /*
-  system.h - Header for system level commands and real-time processes
-  Part of Grbl
+ system.h - Header for system level commands and real-time processes
+ Part of Grbl
 
-  Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
+ Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
 
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+ Grbl is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+ Grbl is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ You should have received a copy of the GNU General Public License
+ along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #ifndef system_h
 #define system_h
@@ -103,16 +103,16 @@
 
 // Define control pin index for Grbl internal use. Pin maps may change, but these values don't.
 #ifdef ENABLE_SAFETY_DOOR_INPUT_PIN
-  #define N_CONTROL_PIN 4
-  #define CONTROL_PIN_INDEX_SAFETY_DOOR   bit(0)
-  #define CONTROL_PIN_INDEX_RESET         bit(1)
-  #define CONTROL_PIN_INDEX_FEED_HOLD     bit(2)
-  #define CONTROL_PIN_INDEX_CYCLE_START   bit(3)
+#define N_CONTROL_PIN 4
+#define CONTROL_PIN_INDEX_SAFETY_DOOR   bit(0)
+#define CONTROL_PIN_INDEX_RESET         bit(1)
+#define CONTROL_PIN_INDEX_FEED_HOLD     bit(2)
+#define CONTROL_PIN_INDEX_CYCLE_START   bit(3)
 #else
-  #define N_CONTROL_PIN 3
-  #define CONTROL_PIN_INDEX_RESET         bit(0)
-  #define CONTROL_PIN_INDEX_FEED_HOLD     bit(1)
-  #define CONTROL_PIN_INDEX_CYCLE_START   bit(2)
+#define N_CONTROL_PIN 3
+#define CONTROL_PIN_INDEX_RESET         bit(0)
+#define CONTROL_PIN_INDEX_FEED_HOLD     bit(1)
+#define CONTROL_PIN_INDEX_CYCLE_START   bit(2)
 #endif
 
 // Define spindle stop override control states.
@@ -122,47 +122,47 @@
 #define SPINDLE_STOP_OVR_RESTORE        bit(2)
 #define SPINDLE_STOP_OVR_RESTORE_CYCLE  bit(3)
 
-
 // Define global system variables
-typedef struct {
-  uint8_t state;               // Tracks the current system state of Grbl.
-  uint8_t abort;               // System abort flag. Forces exit back to main loop for reset.             
-  uint8_t suspend;             // System suspend bitflag variable that manages holds, cancels, and safety door.
-  uint8_t soft_limit;          // Tracks soft limit errors for the state machine. (boolean)
-  uint8_t step_control;        // Governs the step segment generator depending on system state.
-  uint8_t probe_succeeded;     // Tracks if last probing cycle was successful.
-  uint8_t homing_axis_lock;    // Locks axes when limits engage. Used as an axis motion mask in the stepper ISR.
-  #ifdef ENABLE_DUAL_AXIS
+typedef struct
+{
+    uint8_t state;               // Tracks the current system state of Grbl.
+    uint8_t abort; // System abort flag. Forces exit back to main loop for reset.             
+    uint8_t suspend; // System suspend bitflag variable that manages holds, cancels, and safety door.
+    uint8_t soft_limit; // Tracks soft limit errors for the state machine. (boolean)
+    uint8_t step_control; // Governs the step segment generator depending on system state.
+    uint8_t probe_succeeded;     // Tracks if last probing cycle was successful.
+    uint8_t homing_axis_lock; // Locks axes when limits engage. Used as an axis motion mask in the stepper ISR.
+#ifdef ENABLE_DUAL_AXIS
     uint8_t homing_axis_lock_dual;
-  #endif
-  uint8_t f_override;          // Feed rate override value in percent
-  uint8_t r_override;          // Rapids override value in percent
-  uint8_t spindle_speed_ovr;   // Spindle speed value in percent
-  uint8_t spindle_stop_ovr;    // Tracks spindle stop override states
-  uint8_t report_ovr_counter;  // Tracks when to add override data to status reports.
-  uint8_t report_wco_counter;  // Tracks when to add work coordinate offset data to status reports.
-  #ifdef ENABLE_PARKING_OVERRIDE_CONTROL
+#endif
+    uint8_t f_override;          // Feed rate override value in percent
+    uint8_t r_override;          // Rapids override value in percent
+    uint8_t spindle_speed_ovr;   // Spindle speed value in percent
+    uint8_t spindle_stop_ovr;    // Tracks spindle stop override states
+    uint8_t report_ovr_counter; // Tracks when to add override data to status reports.
+    uint8_t report_wco_counter; // Tracks when to add work coordinate offset data to status reports.
+#ifdef ENABLE_PARKING_OVERRIDE_CONTROL
     uint8_t override_ctrl;     // Tracks override control states.
-  #endif
-  #ifdef VARIABLE_SPINDLE
+#endif
+#ifdef VARIABLE_SPINDLE
     float spindle_speed;
-  #endif
+#endif
 } system_t;
 extern system_t sys;
 
 // NOTE: These position variables may need to be declared as volatiles, if problems arise.
-extern int32_t sys_position[N_AXIS];      // Real-time machine (aka home) position vector in steps.
+extern int32_t sys_position[N_AXIS]; // Real-time machine (aka home) position vector in steps.
 extern int32_t sys_probe_position[N_AXIS]; // Last probe position in machine coordinates and steps.
 
-extern volatile uint8_t sys_probe_state;   // Probing state value.  Used to coordinate the probing cycle with stepper ISR.
-extern volatile uint8_t sys_rt_exec_state;   // Global realtime executor bitflag variable for state management. See EXEC bitmasks.
-extern volatile uint8_t sys_rt_exec_alarm;   // Global realtime executor bitflag variable for setting various alarms.
+extern volatile uint8_t sys_probe_state; // Probing state value.  Used to coordinate the probing cycle with stepper ISR.
+extern volatile uint8_t sys_rt_exec_state; // Global realtime executor bitflag variable for state management. See EXEC bitmasks.
+extern volatile uint8_t sys_rt_exec_alarm; // Global realtime executor bitflag variable for setting various alarms.
 extern volatile uint8_t sys_rt_exec_motion_override; // Global realtime executor bitflag variable for motion-based overrides.
 extern volatile uint8_t sys_rt_exec_accessory_override; // Global realtime executor bitflag variable for spindle/coolant overrides.
 
 #ifdef DEBUG
-  #define EXEC_DEBUG_REPORT  bit(0)
-  extern volatile uint8_t sys_rt_exec_debug;
+#define EXEC_DEBUG_REPORT  bit(0)
+extern volatile uint8_t sys_rt_exec_debug;
 #endif
 
 // Initialize the serial protocol
@@ -180,7 +180,6 @@ uint8_t system_execute_line(char *line);
 // Execute the startup script lines stored in EEPROM upon initialization
 void system_execute_startup(char *line);
 
-
 void system_flag_wco_change();
 
 // Returns machine position of axis 'idx'. Must be sent a 'step' array.
@@ -191,8 +190,8 @@ void system_convert_array_steps_to_mpos(float *position, int32_t *steps);
 
 // CoreXY calculation only. Returns x or y-axis "steps" based on CoreXY motor steps.
 #ifdef COREXY
-  int32_t system_convert_corexy_to_x_axis_steps(int32_t *steps);
-  int32_t system_convert_corexy_to_y_axis_steps(int32_t *steps);
+int32_t system_convert_corexy_to_x_axis_steps(int32_t *steps);
+int32_t system_convert_corexy_to_y_axis_steps(int32_t *steps);
 #endif
 
 // Checks and reports if target array exceeds machine travel limits.
@@ -207,6 +206,5 @@ void system_set_exec_motion_override_flag(uint8_t mask);
 void system_set_exec_accessory_override_flag(uint8_t mask);
 void system_clear_exec_motion_overrides();
 void system_clear_exec_accessory_overrides();
-
 
 #endif

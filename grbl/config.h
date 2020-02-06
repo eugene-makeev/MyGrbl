@@ -1,34 +1,31 @@
 /*
-  config.h - compile time configuration
-  Part of Grbl
+ config.h - compile time configuration
+ Part of Grbl
 
-  Copyright (c) 2012-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
+ Copyright (c) 2012-2016 Sungeun K. Jeon for Gnea Research LLC
+ Copyright (c) 2009-2011 Simen Svale Skogsrud
 
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+ Grbl is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+ Grbl is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ You should have received a copy of the GNU General Public License
+ along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 // This file contains compile-time configurations for Grbl's internal system. For the most part,
 // users will not need to directly modify these, but they are here for specific needs, i.e.
 // performance tuning or adjusting to non-typical machines.
-
 // IMPORTANT: Any changes here requires a full re-compiling of the source code to propagate them.
-
 #ifndef config_h
 #define config_h
 #include "grbl.h" // For Arduino IDE compatibility.
-
 
 // Define CPU pin map and default settings.
 // NOTE: OEMs can avoid the need to maintain/update the defaults.h and cpu_map.h files and use only
@@ -578,7 +575,7 @@
 #define PARKING_RATE 500.0 // Parking fast rate after pull-out in mm/min.
 #define PARKING_PULLOUT_RATE 100.0 // Pull-out/plunge slow feed rate in mm/min.
 #define PARKING_PULLOUT_INCREMENT 5.0 // Spindle pull-out and plunge distance in mm. Incremental distance.
-                                      // Must be positive value or equal to zero.
+// Must be positive value or equal to zero.
 
 // Enables a special set of M-code commands that enables and disables the parking motion. 
 // These are controlled by `M56`, `M56 P1`, or `M56 Px` to enable and `M56 P0` to disable. 
@@ -622,33 +619,32 @@
 #define RPM_LINE_B4  1.151360e+03
 
 /* --------------------------------------------------------------------------------------- 
-  This optional dual axis feature is primarily for the homing cycle to locate two sides of 
-  a dual-motor gantry independently, i.e. self-squaring. This requires an additional limit
-  switch for the cloned motor. To self square, both limit switches on the cloned axis must
-  be physically positioned to trigger when the gantry is square. Highly recommend keeping  
-  the motors always enabled to ensure the gantry stays square with the $1=255 setting.
+ This optional dual axis feature is primarily for the homing cycle to locate two sides of 
+ a dual-motor gantry independently, i.e. self-squaring. This requires an additional limit
+ switch for the cloned motor. To self square, both limit switches on the cloned axis must
+ be physically positioned to trigger when the gantry is square. Highly recommend keeping  
+ the motors always enabled to ensure the gantry stays square with the $1=255 setting.
 
-  For Grbl on the Arduino Uno, the cloned axis limit switch must to be shared with and 
-  wired with z-axis limit pin due to the lack of available pins. The homing cycle must home
-  the z-axis and cloned axis in different cycles, which is already the default config.
+ For Grbl on the Arduino Uno, the cloned axis limit switch must to be shared with and 
+ wired with z-axis limit pin due to the lack of available pins. The homing cycle must home
+ the z-axis and cloned axis in different cycles, which is already the default config.
 
-  The dual axis feature works by cloning an axis step output onto another pair of step
-  and direction pins. The step pulse and direction of the cloned motor can be set 
-  independently of the main axis motor. However to save precious flash and memory, this
-  dual axis feature must share the same settings (step/mm, max speed, acceleration) as the 
-  parent motor. This is NOT a feature for an independent fourth axis. Only a motor clone.
+ The dual axis feature works by cloning an axis step output onto another pair of step
+ and direction pins. The step pulse and direction of the cloned motor can be set 
+ independently of the main axis motor. However to save precious flash and memory, this
+ dual axis feature must share the same settings (step/mm, max speed, acceleration) as the 
+ parent motor. This is NOT a feature for an independent fourth axis. Only a motor clone.
 
-  WARNING: Make sure to test the directions of your dual axis motors! They must be setup
-  to move the same direction BEFORE running your first homing cycle or any long motion!
-  Motors moving in opposite directions can cause serious damage to your machine! Use this 
-  dual axis feature at your own risk.
-*/
+ WARNING: Make sure to test the directions of your dual axis motors! They must be setup
+ to move the same direction BEFORE running your first homing cycle or any long motion!
+ Motors moving in opposite directions can cause serious damage to your machine! Use this 
+ dual axis feature at your own risk.
+ */
 // NOTE: This feature requires approximately 400 bytes of flash. Certain configurations can
 // run out of flash to fit on an Arduino 328p/Uno. Only X and Y axes are supported. Variable
 // spindle/laser mode IS supported, but only for one config option. Core XY, spindle direction
 // pin, and M7 mist coolant are disabled/not supported.
 // #define ENABLE_DUAL_AXIS	// Default disabled. Uncomment to enable.
-
 // Select the one axis to mirror another motor. Only X and Y axis is supported at this time.
 #define DUAL_AXIS_SELECT  X_AXIS  // Must be either X_AXIS or Y_AXIS
 
@@ -683,19 +679,15 @@
 // updating lots of code to ensure everything is running correctly.
 // #define DUAL_AXIS_CONFIG_CNC_SHIELD_CLONE  // Uncomment to select. Comment other configs.
 
-
 /* ---------------------------------------------------------------------------------------
-   OEM Single File Configuration Option
+ OEM Single File Configuration Option
 
-   Instructions: Paste the cpu_map and default setting definitions below without an enclosing
-   #ifdef. Comment out the CPU_MAP_xxx and DEFAULT_xxx defines at the top of this file, and
-   the compiler will ignore the contents of defaults.h and cpu_map.h and use the definitions
-   below.
-*/
+ Instructions: Paste the cpu_map and default setting definitions below without an enclosing
+ #ifdef. Comment out the CPU_MAP_xxx and DEFAULT_xxx defines at the top of this file, and
+ the compiler will ignore the contents of defaults.h and cpu_map.h and use the definitions
+ below.
+ */
 
 // Paste CPU_MAP definitions here.
-
 // Paste default settings definitions here.
-
-
 #endif
