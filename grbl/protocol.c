@@ -102,8 +102,8 @@ void protocol_main_loop()
 #endif
         {
             if ((c == '\n'))
-            { // End of line reached
-
+            {
+                // End of line reached
                 protocol_execute_realtime(); // Runtime command check point.
 
                 if (sys.abort)
@@ -129,12 +129,12 @@ void protocol_main_loop()
                     // Empty or comment line. For syncing purposes.
                     report_status_message(STATUS_OK);
                 }
-#endif
                 else if (line[0] == '$')
                 {
                     // Grbl '$' system command
                     report_status_message(system_execute_line(line));
                 }
+#endif
                 else if (sys.state & (STATE_ALARM | STATE_JOG))
                 {
                     // Everything else is gcode. Block if in alarm or jog mode.
@@ -291,10 +291,11 @@ void protocol_exec_rt_system()
     rt_exec = sys_rt_exec_alarm; // Copy volatile sys_rt_exec_alarm.
 
     if (rt_exec)
-    { // Enter only if any bit flag is true
-      // System alarm. Everything has shutdown by something that has gone severely wrong. Report
-      // the source of the error to the user. If critical, Grbl disables by entering an infinite
-      // loop until system reset/abort.
+    {
+        // Enter only if any bit flag is true
+        // System alarm. Everything has shutdown by something that has gone severely wrong. Report
+        // the source of the error to the user. If critical, Grbl disables by entering an infinite
+        // loop until system reset/abort.
         sys.state = STATE_ALARM; // Set system alarm state
         report_alarm_message(rt_exec);
         // Halt everything upon a critical event flag. Currently hard and soft limits flag this.
@@ -346,7 +347,8 @@ void protocol_exec_rt_system()
                 if (sys.state & (STATE_CYCLE | STATE_JOG))
                 {
                     if (!(sys.suspend & (SUSPEND_MOTION_CANCEL | SUSPEND_JOG_CANCEL)))
-                    { // Block, if already holding.
+                    {
+                        // Block, if already holding.
                         st_update_plan_block_parameters(); // Notify stepper module to recompute for hold deceleration.
                         sys.step_control = STEP_CONTROL_EXECUTE_HOLD; // Initiate suspend state with active flag.
                         if (sys.state == STATE_JOG)
@@ -674,16 +676,24 @@ void protocol_exec_rt_system()
                 if (rt_exec & EXEC_COOLANT_MIST_OVR_TOGGLE)
                 {
                     if (coolant_state & COOLANT_MIST_ENABLE)
-                    {   bit_false(coolant_state,COOLANT_MIST_ENABLE);}
+                    {
+                        bit_false(coolant_state,COOLANT_MIST_ENABLE);
+                    }
                     else
-                    {   coolant_state |= COOLANT_MIST_ENABLE;}
+                    {
+                        coolant_state |= COOLANT_MIST_ENABLE;
+                    }
                 }
                 if (rt_exec & EXEC_COOLANT_FLOOD_OVR_TOGGLE)
                 {
                     if (coolant_state & COOLANT_FLOOD_ENABLE)
-                    {   bit_false(coolant_state,COOLANT_FLOOD_ENABLE);}
+                    {
+                        bit_false(coolant_state,COOLANT_FLOOD_ENABLE);
+                    }
                     else
-                    {   coolant_state |= COOLANT_FLOOD_ENABLE;}
+                    {
+                        coolant_state |= COOLANT_FLOOD_ENABLE;
+                    }
                 }
 #else
                 if (coolant_state & COOLANT_FLOOD_ENABLE)
@@ -761,9 +771,13 @@ static void protocol_exec_rt_suspend()
 #endif
 #else
     if (block == NULL)
-    {   restore_condition = (gc_state.modal.spindle | gc_state.modal.coolant);}
+    {
+        restore_condition = (gc_state.modal.spindle | gc_state.modal.coolant);
+    }
     else
-    {   restore_condition = (block->condition & PL_COND_SPINDLE_MASK) | coolant_get_state();}
+    {
+        restore_condition = (block->condition & PL_COND_SPINDLE_MASK) | coolant_get_state();
+    }
 #endif
 
     while (sys.suspend)
@@ -782,11 +796,9 @@ static void protocol_exec_rt_suspend()
             // the safety door and sleep states.
             if (sys.state & (STATE_SAFETY_DOOR | STATE_SLEEP))
             {
-
                 // Handles retraction motions and de-energizing.
                 if (bit_isfalse(sys.suspend, SUSPEND_RETRACT_COMPLETE))
                 {
-
                     // Ensure any prior spindle stop override is disabled at start of safety door routine.
                     sys.spindle_stop_ovr = SPINDLE_STOP_OVR_DISABLED;
 
@@ -858,14 +870,11 @@ static void protocol_exec_rt_suspend()
                         }
 
 #endif
-
                     sys.suspend &= ~(SUSPEND_RESTART_RETRACT);
                     sys.suspend |= SUSPEND_RETRACT_COMPLETE;
-
                 }
                 else
                 {
-
                     if (sys.state == STATE_SLEEP)
                     {
                         report_feedback_message(MESSAGE_SLEEP_MODE);
@@ -892,7 +901,6 @@ static void protocol_exec_rt_suspend()
                     // Handles parking restore and safety door resume.
                     if (sys.suspend & SUSPEND_INITIATE_RESTORE)
                     {
-
 #ifdef PARKING_ENABLE
                         // Execute fast restore motion to the pull-out position. Parking requires homing enabled.
                         // NOTE: State is will remain DOOR, until the de-energizing and retract is complete.
@@ -982,13 +990,10 @@ static void protocol_exec_rt_suspend()
                             system_set_exec_state_flag(EXEC_CYCLE_START); // Set to resume program.
                         }
                     }
-
                 }
-
             }
             else
             {
-
                 // Feed hold manager. Controls spindle stop override states.
                 // NOTE: Hold ensured as completed by condition check at the beginning of suspend routine.
                 if (sys.spindle_stop_ovr)
@@ -1047,11 +1052,9 @@ static void protocol_exec_rt_suspend()
                         bit_false(sys.step_control, STEP_CONTROL_UPDATE_SPINDLE_PWM);
                     }
                 }
-
             }
         }
 
         protocol_exec_rt_system();
-
     }
 }

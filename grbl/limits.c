@@ -97,7 +97,9 @@ uint8_t limits_get_state()
         }
 #ifdef ENABLE_DUAL_AXIS
         if (pin & (1<<DUAL_LIMIT_BIT))
-        {   limit_state |= (1 << N_AXIS);}
+        {
+            limit_state |= (1 << N_AXIS);
+        }
 #endif
     }
     return (limit_state);
@@ -144,7 +146,11 @@ ISR(LIMIT_INT_vect) // DEFAULT: Limit pin change interrupt process.
 // Upon limit pin change, enable watchdog timer to create a short delay. 
 ISR(LIMIT_INT_vect)
 {   if (!(WDTCSR & (1<<WDIE)))
-    {   WDTCSR |= (1<<WDIE);}}
+    {
+        WDTCSR |= (1<<WDIE);
+    }
+}
+
 ISR(WDT_vect) // Watchdog timer ISR
 {
     WDTCSR &= ~(1<<WDIE); // Disable watchdog timer. 
@@ -212,7 +218,9 @@ void limits_go_home(uint8_t cycle_mask)
         step_pin[idx] = get_step_pin_mask(idx);
 #ifdef COREXY
         if ((idx==A_MOTOR)||(idx==B_MOTOR))
-        {   step_pin[idx] = (get_step_pin_mask(X_AXIS)|get_step_pin_mask(Y_AXIS));}
+        {
+            step_pin[idx] = (get_step_pin_mask(X_AXIS)|get_step_pin_mask(Y_AXIS));
+        }
 #endif
 
         if (bit_istrue(cycle_mask, bit(idx)))
@@ -297,7 +305,9 @@ void limits_go_home(uint8_t cycle_mask)
                 axislock |= step_pin[idx];
 #ifdef ENABLE_DUAL_AXIS
                 if (idx == DUAL_AXIS_SELECT)
-                {   sys.homing_axis_lock_dual = step_pin_dual;}
+                {
+                    sys.homing_axis_lock_dual = step_pin_dual;
+                }
 #endif
             }
 
@@ -326,14 +336,20 @@ void limits_go_home(uint8_t cycle_mask)
                         {
 #ifdef COREXY
                             if (idx==Z_AXIS)
-                            {   axislock &= ~(step_pin[Z_AXIS]);}
+                            {
+                                axislock &= ~(step_pin[Z_AXIS]);
+                            }
                             else
-                            {   axislock &= ~(step_pin[A_MOTOR]|step_pin[B_MOTOR]);}
+                            {
+                                axislock &= ~(step_pin[A_MOTOR]|step_pin[B_MOTOR]);
+                            }
 #else
                             axislock &= ~(step_pin[idx]);
 #ifdef ENABLE_DUAL_AXIS
                             if (idx == DUAL_AXIS_SELECT)
-                            {   dual_axis_async_check |= DUAL_AXIS_CHECK_TRIGGER_1;}
+                            {
+                                dual_axis_async_check |= DUAL_AXIS_CHECK_TRIGGER_1;
+                            }
 #endif
 #endif
                         }
