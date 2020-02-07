@@ -27,20 +27,226 @@
 #define LINE_FLAG_COMMENT_PARENTHESES bit(1)
 #define LINE_FLAG_COMMENT_SEMICOLON bit(2)
 
+enum
+{
+    SERIAL_SOURCE,
+    PGM_MEM_SOURCE,
+    NUM_SOURCES
+};
+
 static char line[LINE_BUFFER_SIZE]; // Line to be executed. Zero-terminated.
 
 uint8_t * p_gcode = (uint8_t *) (GCODE_ADDRESS);
 
 static void protocol_exec_rt_suspend();
 
-uint8_t gcode_get_byte(void)
+uint8_t pgm_mem_get_byte(void)
 {
     return pgm_read_byte(p_gcode++);
+}
+
+
+bool gcode_get_line(char *buffer, uint8_t source)
+{
+    uint8_t c, count = 0, line_flags = 0;
+
+    do
+    {
+        switch(source)
+        {
+        case SERIAL_SOURCE:
+            c = serial_read();
+            break;
+#ifdef STANDALONE_CTRL
+        case PGM_MEM_SOURCE:
+            c = pgm_mem_get_byte();
+            break;
+#endif
+        default:
+            return false;
+        }
+
+        if (c == SERIAL_NO_DATA)
+        {
+            // wait till the end of the line received if it started, exit otherwise
+            if (count)
+            {
+                // TODO: exit if no data in timeout
+                protocol_execute_realtime(); // Runtime command check point.
+                continue;
+            }
+
+            break;
+        }
+
+        if (line_flags)
+        {
+            // Throw away all (except EOL) comment characters and overflow characters.
+            if (c == ')')
+            {
+                // End of '()' comment. Resume line allowed.
+                if (line_flags & LINE_FLAG_COMMENT_PARENTHESES)
+                {
+                    line_flags &= ~(LINE_FLAG_COMMENT_PARENTHESES);
+                }
+            }
+        }
+        else
+        {
+            if (c <= ' ')
+            {
+                // Throw away whitepace and control characters
+            }
+            else if (c != '\r')
+            {
+                // skip return carriage char
+            }
+            else if (c == '/')
+            {
+                // Block delete NOT SUPPORTED. Ignore character.
+                // NOTE: If supported, would simply need to check the system if block delete is enabled.
+            }
+            else if (c == '(')
+            {
+                // Enable comments flag and ignore all characters until ')' or EOL.
+                // NOTE: This doesn't follow the NIST definition exactly, but is good enough for now.
+                // In the future, we could simply remove the items within the comments, but retain the
+                // comment control characters, so that the g-code parser can error-check it.
+                line_flags |= LINE_FLAG_COMMENT_PARENTHESES;
+            }
+            else if (c == ';')
+            {
+                // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
+                line_flags |= LINE_FLAG_COMMENT_SEMICOLON;
+                // TODO: Install '%' feature
+                // } else if (c == '%') {
+                // Program start-end percent sign NOT SUPPORTED.
+                // NOTE: This maybe installed to tell Grbl when a program is running vs manual input,
+                // where, during a program, the system auto-cycle start will continue to execute
+                // everything until the next '%' sign. This will help fix resuming issues with certain
+                // functions that empty the planner buffer to execute its task on-time.
+            }
+            else if (count >= (LINE_BUFFER_SIZE - 1))
+            {
+                // Detect line buffer overflow and set flag.
+                line_flags |= LINE_FLAG_OVERFLOW;
+            }
+            else if (c >= 'a' && c <= 'z')
+            {
+                // From lower to upper case
+                buffer[count++] = c - 'a' + 'A';
+            }
+            else
+            {
+                buffer[count++] = c;
+            }
+        }
+
+    } while (c != '\n');
+
+    if (line_flags & LINE_FLAG_OVERFLOW)
+    {
+        // Report line overflow error.
+        report_status_message(STATUS_OVERFLOW);
+    }
+    else
+    {
+        if (count)
+        {
+            line[count] = 0; // Set string termination
+#ifdef REPORT_ECHO_LINE_RECEIVED
+            report_echo_line_received(buffer);
+#endif
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /*
  GRBL PRIMARY LOOP:
  */
+
+void protocol_main_loop_new()
+{
+    // Perform some machine checks to make sure everything is good to go.
+#ifdef CHECK_LIMITS_AT_INIT
+    if (bit_istrue(settings.flags, BITFLAG_HARD_LIMIT_ENABLE))
+    {
+        if (limits_get_state())
+        {
+            sys.state = STATE_ALARM; // Ensure alarm state is active.
+            report_feedback_message(MESSAGE_CHECK_LIMITS);
+        }
+    }
+#endif
+    // Check for and report alarm state after a reset, error, or an initial power up.
+    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
+    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
+    if (sys.state & (STATE_ALARM | STATE_SLEEP))
+    {
+        report_feedback_message(MESSAGE_ALARM_LOCK);
+        sys.state = STATE_ALARM; // Ensure alarm state is set.
+    }
+    else
+    {
+        // Check if the safety door is open.
+        sys.state = STATE_IDLE;
+        if (system_check_safety_door_ajar())
+        {
+            bit_true(sys_rt_exec_state, EXEC_SAFETY_DOOR);
+            protocol_execute_realtime(); // Enter safety door mode. Should return as IDLE state.
+        }
+#ifndef STANDALONE_CTRL
+        // All systems go!
+        system_execute_startup(line); // Execute startup script.
+#endif
+    }
+
+    while (!sys.abort)
+    {
+        protocol_execute_realtime(); // Runtime command check point.
+
+        bool new_line = false;
+
+#ifdef STANDALONE_CTRL
+        new_line = gcode_get_line(line, PGM_MEM_SOURCE);
+        if (!new_line)
+#endif
+        {
+            new_line = gcode_get_line(line, SERIAL_SOURCE);
+        }
+
+        if (new_line)
+        {
+            if (line[0] == '$')
+            {
+                // Grbl '$' system command
+                report_status_message(system_execute_line(line));
+            }
+            else if (sys.state & (STATE_ALARM | STATE_JOG))
+            {
+                // Block if in alarm or jog mode.
+                report_status_message(STATUS_SYSTEM_GC_LOCK);
+            }
+            else
+            {
+                // Parse and execute g-code block.
+                report_status_message(gc_execute_line(line));
+            }
+        }
+        else
+        {
+            // If there are no more characters in the serial read buffer to be processed and executed,
+            // this indicates that g-code streaming has either filled the planner buffer or has
+            // completed. In either case, auto-cycle start, if enabled, any queued moves.
+            protocol_auto_cycle_start();
+        }
+    }
+
+    return;
+}
 void protocol_main_loop()
 {
     // Perform some machine checks to make sure everything is good to go.
@@ -72,8 +278,10 @@ void protocol_main_loop()
             bit_true(sys_rt_exec_state, EXEC_SAFETY_DOOR);
             protocol_execute_realtime(); // Enter safety door mode. Should return as IDLE state.
         }
+#ifndef STANDALONE_CTRL
         // All systems go!
         system_execute_startup(line); // Execute startup script.
+#endif
     }
 
     // ---------------------------------------------------------------------------------
@@ -95,10 +303,12 @@ void protocol_main_loop()
 #ifdef FORCED_START_ENABLED
         while(0);
 #endif
+        system_execute_startup(line); // Execute startup script.
+
         // start from beginning
         p_gcode = (uint8_t *) (GCODE_ADDRESS);
 
-        while ((c = gcode_get_byte()) != SERIAL_NO_DATA)
+        while ((c = pgm_mem_get_byte()) != SERIAL_NO_DATA)
 #endif
         {
             if ((c == '\n'))
@@ -205,7 +415,8 @@ void protocol_main_loop()
                         line_flags |= LINE_FLAG_OVERFLOW;
                     }
                     else if (c >= 'a' && c <= 'z')
-                    { // Upcase lowercase
+                    {
+                        // From lower to upper cases
                         line[char_counter++] = c - 'a' + 'A';
                     }
                     else
