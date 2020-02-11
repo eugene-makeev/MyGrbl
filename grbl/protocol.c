@@ -52,6 +52,11 @@ bool gcode_get_line(char *buffer, uint8_t source)
 
     do
     {
+        if (sys.abort)
+        {
+            return false;
+        }
+
         switch(source)
         {
         case SERIAL_SOURCE:
@@ -151,9 +156,9 @@ bool gcode_get_line(char *buffer, uint8_t source)
     }
     else
     {
+        line[count] = 0; // Set string termination
         if (count)
         {
-            line[count] = 0; // Set string termination
 #ifdef REPORT_ECHO_LINE_RECEIVED
             report_echo_line_received(buffer);
 #endif
@@ -204,17 +209,27 @@ void protocol_main_loop_new()
 #endif
     }
 
+    bool cycle_started = false;
+
     while (!sys.abort)
     {
-        protocol_execute_realtime(); // Runtime command check point.
-
         bool new_line = false;
 
 #ifdef STANDALONE_CTRL
-        new_line = gcode_get_line(line, PGM_MEM_SOURCE);
+        if (!cycle_started)
+        {
+            cycle_started = bit_istrue(sys_rt_exec_state, EXEC_CYCLE_START);
+        }
+
+        if (cycle_started)
+        {
+            new_line = gcode_get_line(line, PGM_MEM_SOURCE);
+        }
+
         if (!new_line)
 #endif
         {
+            cycle_started = false;
             new_line = gcode_get_line(line, SERIAL_SOURCE);
         }
 
@@ -243,10 +258,14 @@ void protocol_main_loop_new()
             // completed. In either case, auto-cycle start, if enabled, any queued moves.
             protocol_auto_cycle_start();
         }
+
+        protocol_execute_realtime(); // Runtime command check point.
     }
 
     return;
 }
+
+
 void protocol_main_loop()
 {
     // Perform some machine checks to make sure everything is good to go.
@@ -278,10 +297,8 @@ void protocol_main_loop()
             bit_true(sys_rt_exec_state, EXEC_SAFETY_DOOR);
             protocol_execute_realtime(); // Enter safety door mode. Should return as IDLE state.
         }
-#ifndef STANDALONE_CTRL
         // All systems go!
         system_execute_startup(line); // Execute startup script.
-#endif
     }
 
     // ---------------------------------------------------------------------------------
@@ -297,19 +314,7 @@ void protocol_main_loop()
     {
         // Process one line of incoming serial data, as the data becomes available. Performs an
         // initial filtering by removing spaces and comments and capitalizing all letters.
-#ifndef STANDALONE_CTRL
         while((c = serial_read()) != SERIAL_NO_DATA)
-#else
-#ifdef FORCED_START_ENABLED
-        while(0);
-#endif
-        system_execute_startup(line); // Execute startup script.
-
-        // start from beginning
-        p_gcode = (uint8_t *) (GCODE_ADDRESS);
-
-        while ((c = pgm_mem_get_byte()) != SERIAL_NO_DATA)
-#endif
         {
             if ((c == '\n'))
             {
@@ -333,7 +338,6 @@ void protocol_main_loop()
                     // Report line overflow error.
                     report_status_message(STATUS_OVERFLOW);
                 }
-#ifndef STANDALONE_CTRL
                 else if (line[0] == 0)
                 {
                     // Empty or comment line. For syncing purposes.
@@ -344,7 +348,6 @@ void protocol_main_loop()
                     // Grbl '$' system command
                     report_status_message(system_execute_line(line));
                 }
-#endif
                 else if (sys.state & (STATE_ALARM | STATE_JOG))
                 {
                     // Everything else is gcode. Block if in alarm or jog mode.
