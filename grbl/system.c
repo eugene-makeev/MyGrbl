@@ -135,37 +135,50 @@ void system_execute_startup(char *line)
 // the lines that are processed afterward, not necessarily real-time during a cycle,
 // since there are motions already stored in the buffer. However, this 'lag' should not
 // be an issue, since these commands are not typically used during a cycle.
+
+enum _byteIdx
+{
+	SYS_CMD_BYTE,
+    CMD_BYTE,
+    EQU_EOL_BYTE,
+    DATA_BYTE
+};
+
 uint8_t system_execute_line(char *line)
 {
     uint8_t char_counter = 1;
     uint8_t helper_var = 0; // Helper variable
     float parameter, value;
-    switch (line[char_counter])
+
+    switch (line[CMD_BYTE])
     {
     case 0:
         report_grbl_help();
         break;
+
     case 'J': // Jogging
         // Execute only if in IDLE or JOG states.
         if (sys.state != STATE_IDLE && sys.state != STATE_JOG)
         {
             return (STATUS_IDLE_ERROR);
         }
-        if (line[2] != '=')
+
+        if (line[EQU_EOL_BYTE] != '=')
         {
             return (STATUS_INVALID_STATEMENT);
         }
-        return (gc_execute_line(line)); // NOTE: $J= is ignored inside g-code parser and used to detect jog motions.
-        break;
+
+        return gc_execute_line(line); // NOTE: $J= is ignored inside g-code parser and used to detect jog motions.
+
     case '$':
     case 'G':
     case 'C':
     case 'X':
-        if (line[2] != 0)
+        if (line[EQU_EOL_BYTE] != 0)
         {
-            return (STATUS_INVALID_STATEMENT);
+            return STATUS_INVALID_STATEMENT;
         }
-        switch (line[1])
+        switch (line[CMD_BYTE])
         {
         case '$': // Prints Grbl settings
             if (sys.state & (STATE_CYCLE | STATE_HOLD))
@@ -215,16 +228,17 @@ uint8_t system_execute_line(char *line)
             break;
         }
         break;
+
     default:
         // Block any system command that requires the state as IDLE/ALARM. (i.e. EEPROM, homing)
         if (!(sys.state == STATE_IDLE || sys.state == STATE_ALARM))
         {
             return (STATUS_IDLE_ERROR);
         }
-        switch (line[1])
+        switch (line[CMD_BYTE])
         {
         case '#': // Print Grbl NGC parameters
-            if (line[2] != 0)
+            if (line[EQU_EOL_BYTE] != 0)
             {
                 return (STATUS_INVALID_STATEMENT);
             }
@@ -243,22 +257,23 @@ uint8_t system_execute_line(char *line)
                 return (STATUS_CHECK_DOOR);
             } // Block if safety door is ajar.
             sys.state = STATE_HOMING; // Set system state variable
-            if (line[2] == 0)
+
+            if (line[EQU_EOL_BYTE] == 0)
             {
                 mc_homing_cycle(HOMING_CYCLE_ALL);
-#ifdef HOMING_SINGLE_AXIS_COMMANDS
             }
+#ifdef HOMING_SINGLE_AXIS_COMMANDS
             else if (line[3] == 0)
             {
-                switch (line[2])
+                switch (line[EQU_EOL_BYTE])
                 {
                     case 'X': mc_homing_cycle(HOMING_CYCLE_X); break;
                     case 'Y': mc_homing_cycle(HOMING_CYCLE_Y); break;
                     case 'Z': mc_homing_cycle(HOMING_CYCLE_Z); break;
                     default: return(STATUS_INVALID_STATEMENT);
                 }
-#endif
             }
+#endif
             else
             {
                 return (STATUS_INVALID_STATEMENT);
@@ -400,6 +415,7 @@ uint8_t system_execute_line(char *line)
             }
         }
     }
+
     return (STATUS_OK); // If '$' command makes it to here, then everything's ok.
 }
 
