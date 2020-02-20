@@ -102,7 +102,7 @@ int main(void)
         report_init_message();
 
         // Start Grbl main loop. Processes program inputs and executes them.
-        protocol_main_loop();
+        protocol_main_loop_new();
 
     }
     return 0; /* Never reached */

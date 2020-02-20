@@ -138,35 +138,36 @@ void system_execute_startup(char *line)
 uint8_t system_execute_line(char *line)
 {
     uint8_t char_counter = 1;
-    uint8_t idx = 0; // Helper variable
+    uint8_t idx = 0;
     float parameter, value;
 
     switch (line[1])
     {
     case 0:
         report_grbl_help();
-        break;
+        return (STATUS_OK);
     case 'J':
         // Jogging
+        if (line[EQU_EOL_BYTE] != '=')
+        {
+            return (STATUS_INVALID_STATEMENT);
+        }
         // Execute only if in IDLE or JOG states.
         if (sys.state != STATE_IDLE && sys.state != STATE_JOG)
         {
             return (STATUS_IDLE_ERROR);
         }
-        if (line[2] != '=')
-        {
-            return (STATUS_INVALID_STATEMENT);
-        }
+
         return (gc_execute_line(line)); // NOTE: $J= is ignored inside g-code parser and used to detect jog motions.
     case '$':
     case 'G':
     case 'C':
     case 'X':
-        if (line[2] != 0)
+        if (line[EQU_EOL_BYTE] != 0)
         {
-            return (STATUS_INVALID_STATEMENT);
+            return STATUS_INVALID_STATEMENT;
         }
-        switch (line[1])
+        switch (line[CMD_BYTE])
         {
         case '$':
             if (sys.state & (STATE_CYCLE | STATE_HOLD))
@@ -218,6 +219,7 @@ uint8_t system_execute_line(char *line)
             }
             break;
         }
+
         return (STATUS_OK);
 
         default:
@@ -246,6 +248,7 @@ uint8_t system_execute_line(char *line)
     case 'H':
         // Perform homing cycle [IDLE/ALARM]
         if (bit_isfalse(settings.flags, BITFLAG_HOMING_ENABLE))
+
         {
             return (STATUS_SETTING_DISABLED);
         }
@@ -317,6 +320,7 @@ uint8_t system_execute_line(char *line)
                 return (STATUS_INVALID_STATEMENT);
             }
 
+            // TODO check this change
             settings_store_build_info(line[3]);
         }
 #endif
@@ -376,8 +380,6 @@ uint8_t system_execute_line(char *line)
                 return (STATUS_IDLE_ERROR);
             }
 
-            // Store only when idle.
-            idx = true;  // Set helper_var to flag storing method.
             // No break. Continues into default: to read remaining command characters.
         }
 
@@ -391,7 +393,7 @@ uint8_t system_execute_line(char *line)
         {
             return (STATUS_INVALID_STATEMENT);
         }
-        if (idx)
+        if (line[1] == 'N')
         {
             // Store startup line
             // Prepare sending gcode block to gcode parser by shifting all characters

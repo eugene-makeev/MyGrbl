@@ -35,6 +35,7 @@ enum
 };
 
 static char line[LINE_BUFFER_SIZE]; // Line to be executed. Zero-terminated.
+uint8_t gcode[GCODE_SIZE];
 
 uint8_t * p_gcode = (uint8_t *) (GCODE_ADDRESS);
 
@@ -45,7 +46,7 @@ uint8_t pgm_mem_get_byte(void)
     return pgm_read_byte(p_gcode++);
 }
 
-
+#ifdef STANDALONE_CTRL
 bool gcode_get_line(char *buffer, uint8_t source)
 {
     uint8_t c, count = 0, line_flags = 0;
@@ -84,6 +85,10 @@ bool gcode_get_line(char *buffer, uint8_t source)
             break;
         }
 
+#ifdef REPORT_ECHO_LINE_RECEIVED
+        serial_write(c);
+#endif // REPORT_ECHO_LINE_RECEIVED
+
         if (line_flags)
         {
             // Throw away all (except EOL) comment characters and overflow characters.
@@ -101,10 +106,6 @@ bool gcode_get_line(char *buffer, uint8_t source)
             if (c <= ' ')
             {
                 // Throw away whitepace and control characters
-            }
-            else if (c != '\r')
-            {
-                // skip return carriage char
             }
             else if (c == '/')
             {
@@ -172,7 +173,6 @@ bool gcode_get_line(char *buffer, uint8_t source)
 /*
  GRBL PRIMARY LOOP:
  */
-
 void protocol_main_loop_new()
 {
     // Perform some machine checks to make sure everything is good to go.
@@ -203,10 +203,6 @@ void protocol_main_loop_new()
             bit_true(sys_rt_exec_state, EXEC_SAFETY_DOOR);
             protocol_execute_realtime(); // Enter safety door mode. Should return as IDLE state.
         }
-#ifndef STANDALONE_CTRL
-        // All systems go!
-        system_execute_startup(line); // Execute startup script.
-#endif
     }
 
     bool cycle_started = false;
@@ -215,10 +211,13 @@ void protocol_main_loop_new()
     {
         bool new_line = false;
 
-#ifdef STANDALONE_CTRL
         if (!cycle_started)
         {
             cycle_started = bit_istrue(sys_rt_exec_state, EXEC_CYCLE_START);
+            if (cycle_started)
+            {
+                system_execute_startup(line); // Execute startup script.
+            }
         }
 
         if (cycle_started)
@@ -227,7 +226,6 @@ void protocol_main_loop_new()
         }
 
         if (!new_line)
-#endif
         {
             cycle_started = false;
             new_line = gcode_get_line(line, SERIAL_SOURCE);
@@ -265,7 +263,7 @@ void protocol_main_loop_new()
     return;
 }
 
-
+#else
 void protocol_main_loop()
 {
     // Perform some machine checks to make sure everything is good to go.
@@ -444,6 +442,7 @@ void protocol_main_loop()
 
     return; /* Never reached */
 }
+#endif
 
 // Block until all buffered steps are executed or in a cycle state. Works with feed hold
 // during a synchronize call, if it should happen. Also, waits for clean cycle end.
