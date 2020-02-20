@@ -138,14 +138,16 @@ void system_execute_startup(char *line)
 uint8_t system_execute_line(char *line)
 {
     uint8_t char_counter = 1;
-    uint8_t helper_var = 0; // Helper variable
+    uint8_t idx = 0; // Helper variable
     float parameter, value;
-    switch (line[char_counter])
+
+    switch (line[1])
     {
     case 0:
         report_grbl_help();
         break;
-    case 'J': // Jogging
+    case 'J':
+        // Jogging
         // Execute only if in IDLE or JOG states.
         if (sys.state != STATE_IDLE && sys.state != STATE_JOG)
         {
@@ -156,7 +158,6 @@ uint8_t system_execute_line(char *line)
             return (STATUS_INVALID_STATEMENT);
         }
         return (gc_execute_line(line)); // NOTE: $J= is ignored inside g-code parser and used to detect jog motions.
-        break;
     case '$':
     case 'G':
     case 'C':
@@ -167,21 +168,22 @@ uint8_t system_execute_line(char *line)
         }
         switch (line[1])
         {
-        case '$': // Prints Grbl settings
+        case '$':
             if (sys.state & (STATE_CYCLE | STATE_HOLD))
             {
+                // Block during cycle. Takes too long to print.
                 return (STATUS_IDLE_ERROR);
-            } // Block during cycle. Takes too long to print.
-            else
-            {
-                report_grbl_settings();
             }
+            // Prints Grbl settings
+            report_grbl_settings();
             break;
-        case 'G': // Prints gcode parser state
+        case 'G':
+            // Prints gcode parser state
             // TODO: Move this to realtime commands for GUIs to request this data during suspend-state.
             report_gcode_modes();
             break;
-        case 'C': // Set check g-code mode [IDLE/CHECK]
+        case 'C':
+            // Set check g-code mode [IDLE/CHECK]
             // Perform reset when toggling off. Check g-code mode should only work if Grbl
             // is idle and ready, regardless of alarm locks. This is mainly to keep things
             // simple and consistent.
@@ -200,206 +202,234 @@ uint8_t system_execute_line(char *line)
                 report_feedback_message(MESSAGE_ENABLED);
             }
             break;
-        case 'X': // Disable alarm lock [ALARM]
+        case 'X':
+            // Disable alarm lock [ALARM]
             if (sys.state == STATE_ALARM)
             {
-                // Block if safety door is ajar.
+                // Block if safety door is ajar
                 if (system_check_safety_door_ajar())
                 {
                     return (STATUS_CHECK_DOOR);
                 }
                 report_feedback_message(MESSAGE_ALARM_UNLOCK);
                 sys.state = STATE_IDLE;
-                // Don't run startup script. Prevents stored moves in startup from causing accidents.
-            } // Otherwise, no effect.
+                // Don't run startup script. Prevents stored moves in startup from causing accidents
+                // Otherwise, no effect
+            }
             break;
+        }
+        return (STATUS_OK);
+
+        default:
+            break;
+    }
+
+    // Block any system command that requires the state as IDLE/ALARM. (i.e. EEPROM, homing)
+    if (!(sys.state == STATE_IDLE || sys.state == STATE_ALARM))
+    {
+        return (STATUS_IDLE_ERROR);
+    }
+
+    switch (line[1])
+    {
+    case '#':
+        // Print Grbl NGC parameters
+        if (line[2] != 0)
+        {
+            return (STATUS_INVALID_STATEMENT);
+        }
+        else
+        {
+            report_ngc_parameters();
         }
         break;
-    default:
-        // Block any system command that requires the state as IDLE/ALARM. (i.e. EEPROM, homing)
-        if (!(sys.state == STATE_IDLE || sys.state == STATE_ALARM))
+    case 'H':
+        // Perform homing cycle [IDLE/ALARM]
+        if (bit_isfalse(settings.flags, BITFLAG_HOMING_ENABLE))
         {
-            return (STATUS_IDLE_ERROR);
+            return (STATUS_SETTING_DISABLED);
         }
-        switch (line[1])
+        // Block if safety door is ajar.
+        if (system_check_safety_door_ajar())
         {
-        case '#': // Print Grbl NGC parameters
-            if (line[2] != 0)
+            return (STATUS_CHECK_DOOR);
+        }
+
+        if (line[2] == 0)
+        {
+            mc_homing_cycle(HOMING_CYCLE_ALL);
+        }
+#ifdef HOMING_SINGLE_AXIS_COMMANDS
+        else if (line[3] == 0)
+        {
+            switch (line[2])
             {
-                return (STATUS_INVALID_STATEMENT);
+                case 'X':
+                    mc_homing_cycle(HOMING_CYCLE_X);
+                    break;
+                case 'Y':
+                    mc_homing_cycle(HOMING_CYCLE_Y);
+                    break;
+                case 'Z':
+                    mc_homing_cycle(HOMING_CYCLE_Z);
+                    break;
+                default:
+                    return(STATUS_INVALID_STATEMENT);
             }
-            else
-            {
-                report_ngc_parameters();
-            }
-            break;
-        case 'H': // Perform homing cycle [IDLE/ALARM]
-            if (bit_isfalse(settings.flags, BITFLAG_HOMING_ENABLE))
-            {
-                return (STATUS_SETTING_DISABLED);
-            }
-            if (system_check_safety_door_ajar())
-            {
-                return (STATUS_CHECK_DOOR);
-            } // Block if safety door is ajar.
-            sys.state = STATE_HOMING; // Set system state variable
+        }
+#endif
+        else
+        {
+            return (STATUS_INVALID_STATEMENT);
+        }
+        if (!sys.abort)
+        {
+            // Execute startup scripts after successful homing.
+            sys.state = STATE_IDLE; // Set to IDLE when complete.
+            st_go_idle(); // Set steppers to the settings idle state before returning.
             if (line[2] == 0)
             {
-                mc_homing_cycle(HOMING_CYCLE_ALL);
-#ifdef HOMING_SINGLE_AXIS_COMMANDS
+                system_execute_startup(line);
             }
-            else if (line[3] == 0)
-            {
-                switch (line[2])
-                {
-                    case 'X': mc_homing_cycle(HOMING_CYCLE_X); break;
-                    case 'Y': mc_homing_cycle(HOMING_CYCLE_Y); break;
-                    case 'Z': mc_homing_cycle(HOMING_CYCLE_Z); break;
-                    default: return(STATUS_INVALID_STATEMENT);
-                }
-#endif
-            }
-            else
-            {
-                return (STATUS_INVALID_STATEMENT);
-            }
-            if (!sys.abort)
-            {  // Execute startup scripts after successful homing.
-                sys.state = STATE_IDLE; // Set to IDLE when complete.
-                st_go_idle(); // Set steppers to the settings idle state before returning.
-                if (line[2] == 0)
-                {
-                    system_execute_startup(line);
-                }
-            }
-            break;
-        case 'S': // Puts Grbl to sleep [IDLE/ALARM]
-            if ((line[2] != 'L') || (line[3] != 'P') || (line[4] != 0))
-            {
-                return (STATUS_INVALID_STATEMENT);
-            }
-            system_set_exec_state_flag(EXEC_SLEEP); // Set to execute sleep mode immediately
-            break;
-        case 'I': // Print or store build info. [IDLE/ALARM]
-            if (line[++char_counter] == 0)
-            {
-                settings_read_build_info(line);
-                report_build_info(line);
+        }
+        break;
+    case 'S':
+        // Puts Grbl to sleep [IDLE/ALARM]
+        if ((line[2] != 'L') || (line[3] != 'P') || (line[4] != 0))
+        {
+            return (STATUS_INVALID_STATEMENT);
+        }
+        system_set_exec_state_flag(EXEC_SLEEP); // Set to execute sleep mode immediately
+        break;
+    case 'I':
+        // Print or store build info. [IDLE/ALARM]
+        if (line[2] == 0)
+        {
+            settings_read_build_info(line);
+            report_build_info(line);
+        }
 #ifdef ENABLE_BUILD_INFO_WRITE_COMMAND
-            }
-            else
-            { // Store startup line [IDLE/ALARM]
-                if (line[char_counter++] != '=')
-                {
-                    return (STATUS_INVALID_STATEMENT);
-                }
-                helper_var = char_counter; // Set helper variable as counter to start of user info line.
-                do
-                {
-                    line[char_counter - helper_var] = line[char_counter];
-                }
-                while (line[char_counter++] != 0);
-                settings_store_build_info(line);
-#endif
-            }
-            break;
-        case 'R': // Restore defaults [IDLE/ALARM]
-            if ((line[2] != 'S') || (line[3] != 'T') || (line[4] != '=') || (line[6] != 0))
+        else
+        {
+            // Store startup line [IDLE/ALARM]
+            if (line[2] != '=')
             {
                 return (STATUS_INVALID_STATEMENT);
             }
-            switch (line[5])
-            {
+
+            settings_store_build_info(line[3]);
+        }
+#endif
+        break;
+    case 'R':
+        // Restore defaults [IDLE/ALARM]
+        if ((line[2] != 'S') || (line[3] != 'T') || (line[4] != '=') || (line[6] != 0))
+        {
+            return (STATUS_INVALID_STATEMENT);
+        }
+        switch (line[5])
+        {
 #ifdef ENABLE_RESTORE_EEPROM_DEFAULT_SETTINGS
-            case '$':
-                settings_restore(SETTINGS_RESTORE_DEFAULTS);
-                break;
+        case '$':
+            settings_restore(SETTINGS_RESTORE_DEFAULTS);
+            break;
 #endif
 #ifdef ENABLE_RESTORE_EEPROM_CLEAR_PARAMETERS
-            case '#':
-                settings_restore(SETTINGS_RESTORE_PARAMETERS);
-                break;
+        case '#':
+            settings_restore(SETTINGS_RESTORE_PARAMETERS);
+            break;
 #endif
 #ifdef ENABLE_RESTORE_EEPROM_WIPE_ALL
-            case '*':
-                settings_restore(SETTINGS_RESTORE_ALL);
-                break;
-#endif
-            default:
-                return (STATUS_INVALID_STATEMENT);
-            }
-            report_feedback_message(MESSAGE_RESTORE_DEFAULTS);
-            mc_reset(); // Force reset to ensure settings are initialized correctly.
+        case '*':
+            settings_restore(SETTINGS_RESTORE_ALL);
             break;
-        case 'N': // Startup lines. [IDLE/ALARM]
-            if (line[++char_counter] == 0)
-            { // Print startup lines
-                for (helper_var = 0; helper_var < N_STARTUP_LINE; helper_var++)
-                {
-                    if (!(settings_read_startup_line(helper_var, line)))
-                    {
-                        report_status_message(STATUS_SETTING_READ_FAIL);
-                    }
-                    else
-                    {
-                        report_startup_line(helper_var, line);
-                    }
-                }
-                break;
-            }
-            else
-            { // Store startup line [IDLE Only] Prevents motion during ALARM.
-                if (sys.state != STATE_IDLE)
-                {
-                    return (STATUS_IDLE_ERROR);
-                } // Store only when idle.
-                helper_var = true;  // Set helper_var to flag storing method.
-                // No break. Continues into default: to read remaining command characters.
-            }
-        default:  // Storing setting methods [IDLE/ALARM]
-            if (!read_float(line, &char_counter, &parameter))
+#endif
+        default:
+            return (STATUS_INVALID_STATEMENT);
+        }
+        report_feedback_message(MESSAGE_RESTORE_DEFAULTS);
+        mc_reset(); // Force reset to ensure settings are initialized correctly.
+        break;
+    case 'N':
+        // Startup lines. [IDLE/ALARM]
+        if (line[2] == 0)
+        {
+            // Print startup lines
+            for (idx = 0; idx < N_STARTUP_LINE; idx++)
             {
-                return (STATUS_BAD_NUMBER_FORMAT);
-            }
-            if (line[char_counter++] != '=')
-            {
-                return (STATUS_INVALID_STATEMENT);
-            }
-            if (helper_var)
-            { // Store startup line
-              // Prepare sending gcode block to gcode parser by shifting all characters
-                helper_var = char_counter; // Set helper variable as counter to start of gcode block
-                do
+                if (settings_read_startup_line(idx, line))
                 {
-                    line[char_counter - helper_var] = line[char_counter];
-                }
-                while (line[char_counter++] != 0);
-                // Execute gcode block to ensure block is valid.
-                helper_var = gc_execute_line(line); // Set helper_var to returned status code.
-                if (helper_var)
-                {
-                    return (helper_var);
+                    report_startup_line(idx, line);
                 }
                 else
                 {
-                    helper_var = trunc(parameter); // Set helper_var to int value of parameter
-                    settings_store_startup_line(helper_var, line);
+                    report_status_message(STATUS_SETTING_READ_FAIL);
                 }
+            }
+            break;
+        }
+        else
+        {
+            // Store startup line [IDLE Only] Prevents motion during ALARM.
+            if (sys.state != STATE_IDLE)
+            {
+                return (STATUS_IDLE_ERROR);
+            }
+
+            // Store only when idle.
+            idx = true;  // Set helper_var to flag storing method.
+            // No break. Continues into default: to read remaining command characters.
+        }
+
+    default:
+        // Storing setting methods [IDLE/ALARM]
+        if (!read_float(line, &char_counter, &parameter))
+        {
+            return (STATUS_BAD_NUMBER_FORMAT);
+        }
+        if (line[char_counter++] != '=')
+        {
+            return (STATUS_INVALID_STATEMENT);
+        }
+        if (idx)
+        {
+            // Store startup line
+            // Prepare sending gcode block to gcode parser by shifting all characters
+            idx = char_counter; // Set helper variable as counter to start of gcode block
+            do
+            {
+                line[char_counter - idx] = line[char_counter];
+            }
+            while (line[char_counter++] != 0);
+            // Execute gcode block to ensure block is valid.
+            idx = gc_execute_line(line); // Set helper_var to returned status code.
+            if (idx)
+            {
+                return (idx);
             }
             else
-            { // Store global setting.
-                if (!read_float(line, &char_counter, &value))
-                {
-                    return (STATUS_BAD_NUMBER_FORMAT);
-                }
-                if ((line[char_counter] != 0) || (parameter > 255))
-                {
-                    return (STATUS_INVALID_STATEMENT);
-                }
-                return (settings_store_global_setting((uint8_t) parameter, value));
+            {
+                idx = trunc(parameter); // Set helper_var to int value of parameter
+                settings_store_startup_line(idx, line);
             }
         }
+        else
+        {
+            // Store global setting.
+            if (!read_float(line, &char_counter, &value))
+            {
+                return (STATUS_BAD_NUMBER_FORMAT);
+            }
+            if ((line[char_counter] != 0) || (parameter > 255))
+            {
+                return (STATUS_INVALID_STATEMENT);
+            }
+            return (settings_store_global_setting((uint8_t) parameter, value));
+        }
+
+        break;
     }
+
     return (STATUS_OK); // If '$' command makes it to here, then everything's ok.
 }
 
