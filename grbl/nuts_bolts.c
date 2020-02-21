@@ -35,9 +35,9 @@ uint8_t str_length(char* line)
 }
 
 // do not handle overflow
-uint8_t read_dec_uint(char* line, int* value)
+uint8_t read_dec_uint(char* line, unsigned int* value)
 {
-    uint8_t *ptr = line;
+    char *ptr = line;
     uint8_t digits = 0;
 
     value = 0;
@@ -48,7 +48,7 @@ uint8_t read_dec_uint(char* line, int* value)
         if ((chr >= '0') && (chr <= '9'))
         {
             chr -= '0';
-            value = *value * 10 + chr;
+            *value = *value * 10 + chr;
             digits ++;
         }
         else

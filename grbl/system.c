@@ -137,9 +137,9 @@ void system_execute_startup(char *line)
 // be an issue, since these commands are not typically used during a cycle.
 uint8_t system_execute_line(char *line)
 {
-    uint8_t char_counter = 1;
     uint8_t idx = 0;
-    float parameter, value;
+    float value;
+    unsigned int param;
 
     switch (line[1])
     {
@@ -410,48 +410,44 @@ uint8_t system_execute_line(char *line)
 
     default:
         // Storing setting methods [IDLE/ALARM]
-        if (!read_float(line, &char_counter, &parameter))
+        idx = read_dec_uint(&line[2], &param);
+        if (!idx)
         {
             return (STATUS_BAD_NUMBER_FORMAT);
         }
-        if (line[char_counter++] != '=')
+        if (line[2 + idx] != '=')
         {
             return (STATUS_INVALID_STATEMENT);
         }
         if (line[1] == 'N')
         {
-            // Store startup line
-            // Prepare sending gcode block to gcode parser by shifting all characters
-            idx = char_counter; // Set helper variable as counter to start of gcode block
-            do
-            {
-                line[char_counter - idx] = line[char_counter];
-            }
-            while (line[char_counter++] != 0);
-            // Execute gcode block to ensure block is valid.
-            idx = gc_execute_line(line); // Set helper_var to returned status code.
-            if (idx)
-            {
-                return (idx);
-            }
-            else
-            {
-                idx = trunc(parameter); // Set helper_var to int value of parameter
-                settings_store_startup_line(idx, line);
-            }
-        }
-        else
-        {
-            // Store global setting.
-            if (!read_float(line, &char_counter, &value))
-            {
-                return (STATUS_BAD_NUMBER_FORMAT);
-            }
-            if ((line[char_counter] != 0) || (parameter > 255))
+            if (param >= N_STARTUP_LINE)
             {
                 return (STATUS_INVALID_STATEMENT);
             }
-            return (settings_store_global_setting((uint8_t) parameter, value));
+            // Store startup line
+            // Execute gcode block to ensure block is valid.
+            uint8_t status = gc_execute_line(&line[3 + idx]); // Set helper_var to returned status code.
+            if (status)
+            {
+                return (status);
+            }
+
+            settings_store_startup_line(param, &line[3 + idx]);
+        }
+        else
+        {
+            idx += 3;
+            // Store global setting.
+            if (!read_float(line, &idx, &value))
+            {
+                return (STATUS_BAD_NUMBER_FORMAT);
+            }
+            if ((line[idx] != 0) || (param > 255))
+            {
+                return (STATUS_INVALID_STATEMENT);
+            }
+            return settings_store_global_setting((uint8_t) param, value);
         }
 
         break;
