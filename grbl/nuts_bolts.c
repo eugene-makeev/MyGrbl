@@ -23,6 +23,43 @@
 
 #define MAX_INT_DIGITS 8 // Maximum number of digits in int32 (and float)
 
+uint8_t str_length(char* line)
+{
+    uint8_t length = 0;
+    while (line[length] && length < LINE_BUFFER_SIZE)
+    {
+        length++;
+    }
+
+    return length;
+}
+
+// do not handle overflow
+uint8_t read_dec_uint(char* line, int* value)
+{
+    uint8_t *ptr = line;
+    uint8_t digits = 0;
+
+    value = 0;
+
+    while (*ptr && digits < MAX_INT_DIGITS)
+    {
+        uint8_t chr = *ptr++;
+        if ((chr >= '0') && (chr <= '9'))
+        {
+            chr -= '0';
+            value = value * 10 + chr;
+            digits ++;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return digits;
+}
+
 // Extracts a floating point value from a string. The following code is based loosely on
 // the avr-libc strtod() function by Michael Stumpf and Dmitry Xmelkov and many freely
 // available conversion method examples, but has been highly optimized for Grbl. For known

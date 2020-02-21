@@ -69,6 +69,8 @@
 // a pointer to the result variable. Returns true when it succeeds
 uint8_t read_float(char *line, uint8_t *char_counter, float *float_ptr);
 
+uint8_t read_dec_uint(char* line, int* value);
+
 // Non-blocking delay function used for general operation and suspend features.
 void delay_sec(float seconds, uint8_t mode);
 

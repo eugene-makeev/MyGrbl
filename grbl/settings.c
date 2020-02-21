@@ -75,8 +75,7 @@ void settings_store_startup_line(uint8_t n, char *line)
 void settings_store_build_info(char *line)
 {
     // Build info can only be stored when state is IDLE.
-    memcpy_to_eeprom_with_checksum(EEPROM_ADDR_BUILD_INFO, (char*) line,
-    LINE_BUFFER_SIZE);
+    memcpy_to_eeprom_with_checksum(EEPROM_ADDR_BUILD_INFO, (char*) line, str_length(line));
 }
 
 // Method to store coord data parameters into EEPROM
