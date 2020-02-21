@@ -244,6 +244,31 @@ uint8_t system_execute_line(char *line)
         {
             report_ngc_parameters();
         }
+
+        return (STATUS_OK);
+
+        default:
+            break;
+    }
+
+    // Block any system command that requires the state as IDLE/ALARM. (i.e. EEPROM, homing)
+    if (!(sys.state == STATE_IDLE || sys.state == STATE_ALARM))
+    {
+        return (STATUS_IDLE_ERROR);
+    }
+
+    switch (line[1])
+    {
+    case '#':
+        // Print Grbl NGC parameters
+        if (line[2] != 0)
+        {
+            return (STATUS_INVALID_STATEMENT);
+        }
+        else
+        {
+            report_ngc_parameters();
+        }
         break;
     case 'H':
         // Perform homing cycle [IDLE/ALARM]
