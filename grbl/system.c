@@ -148,7 +148,7 @@ uint8_t system_execute_line(char *line)
         return (STATUS_OK);
     case 'J':
         // Jogging
-        if (line[EQU_EOL_BYTE] != '=')
+        if (line[2] != '=')
         {
             return (STATUS_INVALID_STATEMENT);
         }
@@ -163,11 +163,11 @@ uint8_t system_execute_line(char *line)
     case 'G':
     case 'C':
     case 'X':
-        if (line[EQU_EOL_BYTE] != 0)
+        if (line[2] != 0)
         {
             return STATUS_INVALID_STATEMENT;
         }
-        switch (line[CMD_BYTE])
+        switch (line[1])
         {
         case '$':
             if (sys.state & (STATE_CYCLE | STATE_HOLD))
@@ -346,7 +346,7 @@ uint8_t system_execute_line(char *line)
             }
 
             // TODO check this change
-            settings_store_build_info(line[3]);
+            settings_store_build_info(&line[3]);
         }
 #endif
         break;
@@ -460,6 +460,14 @@ uint8_t system_execute_line(char *line)
     return (STATUS_OK); // If '$' command makes it to here, then everything's ok.
 }
 
+
+void system_flag_wco_change()
+{
+#ifdef FORCE_BUFFER_SYNC_DURING_WCO_CHANGE
+    protocol_buffer_synchronize();
+#endif
+    sys.report_wco_counter = 0;
+}
 
 // Returns machine position of axis 'idx'. Must be sent a 'step' array.
 // NOTE: If motor steps and machine position are not in the same coordinate frame, this function

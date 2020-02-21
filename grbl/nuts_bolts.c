@@ -48,7 +48,7 @@ uint8_t read_dec_uint(char* line, int* value)
         if ((chr >= '0') && (chr <= '9'))
         {
             chr -= '0';
-            value = value * 10 + chr;
+            value = *value * 10 + chr;
             digits ++;
         }
         else
