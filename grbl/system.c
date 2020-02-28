@@ -415,29 +415,38 @@ uint8_t system_execute_line(char *line)
         {
             return (STATUS_BAD_NUMBER_FORMAT);
         }
+        printPgmString(PSTR("idx:\r\n"));
+        print_uint8_base10(idx);
+
         if (line[2 + idx] != '=')
         {
+            printString(line[2 + idx]);
+            printPgmString(PSTR("WTF?\r\n"));
             return (STATUS_INVALID_STATEMENT);
         }
+
+        idx += 3;
+
         if (line[1] == 'N')
         {
             if (param >= N_STARTUP_LINE)
             {
                 return (STATUS_INVALID_STATEMENT);
             }
+            printPgmString(PSTR("Check line validity\r\n"));
             // Store startup line
             // Execute gcode block to ensure block is valid.
-            uint8_t status = gc_execute_line(&line[3 + idx]); // Set helper_var to returned status code.
+            uint8_t status = gc_execute_line(&line[idx]); // Set helper_var to returned status code.
             if (status)
             {
                 return (status);
             }
 
-            settings_store_startup_line(param, &line[3 + idx]);
+            printPgmString(PSTR("STORE startup line\r\n"));
+            settings_store_startup_line(param, &line[idx]);
         }
         else
         {
-            idx += 3;
             // Store global setting.
             if (!read_float(line, &idx, &value))
             {

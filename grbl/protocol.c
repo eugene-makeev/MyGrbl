@@ -233,21 +233,25 @@ void protocol_main_loop_new()
 
         if (new_line)
         {
+            uint8_t status;
+
             if (line[0] == '$')
             {
                 // Grbl '$' system command
-                report_status_message(system_execute_line(line));
+                status = system_execute_line(line);
             }
             else if (sys.state & (STATE_ALARM | STATE_JOG))
             {
                 // Block if in alarm or jog mode.
-                report_status_message(STATUS_SYSTEM_GC_LOCK);
+                status = STATUS_SYSTEM_GC_LOCK;
             }
             else
             {
                 // Parse and execute g-code block.
-                report_status_message(gc_execute_line(line));
+                status = gc_execute_line(line);
             }
+
+            report_status_message(status);
         }
         else
         {
@@ -257,7 +261,7 @@ void protocol_main_loop_new()
             protocol_auto_cycle_start();
         }
 
-        protocol_execute_realtime(); // Runtime command check point.
+//        protocol_execute_realtime(); // Runtime command check point.
     }
 
     return;
@@ -491,6 +495,7 @@ void protocol_execute_realtime()
     protocol_exec_rt_system();
     if (sys.suspend)
     {
+        printPgmString(PSTR("Suspend\r\n"));
         protocol_exec_rt_suspend();
     }
 }
