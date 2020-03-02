@@ -135,7 +135,7 @@ void system_execute_startup(char *line)
 // the lines that are processed afterward, not necessarily real-time during a cycle,
 // since there are motions already stored in the buffer. However, this 'lag' should not
 // be an issue, since these commands are not typically used during a cycle.
-uint8_t system_execute_line(char *line)
+uint8_t system_execute_line(char line[])
 {
     uint8_t idx = 0;
     float value;
@@ -415,17 +415,19 @@ uint8_t system_execute_line(char *line)
         {
             return (STATUS_BAD_NUMBER_FORMAT);
         }
-        printPgmString(PSTR("idx:\r\n"));
-        print_uint8_base10(idx);
 
-        if (line[2 + idx] != '=')
+        idx += 2;
+
+        if (line[idx] != '=')
         {
-            printString(line[2 + idx]);
+            print_uint8_base10(idx);
+            printString(line);
+            serial_write(line[idx]);
             printPgmString(PSTR("WTF?\r\n"));
             return (STATUS_INVALID_STATEMENT);
         }
 
-        idx += 3;
+        idx += 1;
 
         if (line[1] == 'N')
         {
